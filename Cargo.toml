@@ -3,4 +3,9 @@ name = "my_linker"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "my_project_lib"
+path = "src/lib/mod.rs"
+
 [dependencies]
+goblin ="0.8.2"
