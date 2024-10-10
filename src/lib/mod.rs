@@ -5,3 +5,4 @@ use std::env;
 use std::str;
 
 pub mod utils;
+pub mod elf_file;

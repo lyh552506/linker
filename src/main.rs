@@ -2,7 +2,6 @@ use std::{
     env::{self, Args},
     process::exit,
 };
-
 use my_project_lib::utils;
 
 fn main() {
@@ -11,6 +10,7 @@ fn main() {
         eprintln!("Missing args!");
         exit(0);
     }
-    utils::read_file(&Args[1]);
+	let elf=utils::deal_target_file(Args[1].as_str());
+  
     println!("Hello, world!");
 }
