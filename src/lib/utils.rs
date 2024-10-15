@@ -1,5 +1,6 @@
 #![allow(unused)]
-use crate::elf_file::{MyElf, MyFile};
+use crate::elf_file::{Ehdr, MyElf, MyFile, Shdr};
+use bytemuck::*;
 use goblin::elf;
 use goblin::{self, elf::Elf};
 use std::env;
@@ -25,8 +26,6 @@ pub fn read_file(file_name: &str) -> MyFile {
     }
 }
 
-fn read_sruct<T>() {}
-
 fn check_magnum(content: &Vec<u8>) -> bool {
     let magic_hdr: [u8; 4] = [0x7f, 0x45, 0x4c, 0x46];
     if content[0..4] != magic_hdr {
@@ -35,7 +34,16 @@ fn check_magnum(content: &Vec<u8>) -> bool {
     true
 }
 
-pub fn deal_target_file(file_name: &str) -> MyElf {
+pub fn read_struct<T: Pod>(src: &Vec<u8>) -> T {
+    assert!(
+        src.len() >= std::mem::size_of::<T>(),
+        "Src byte size must larger than struct"
+    );
+    let target_struct = &src[0..std::mem::size_of::<T>()];
+    bytemuck::from_bytes::<T>(target_struct).clone()
+}
+
+pub fn GetElf(file_name: &str) -> MyElf {
     //read file
     let f = read_file(file_name);
     //check
@@ -43,5 +51,29 @@ pub fn deal_target_file(file_name: &str) -> MyElf {
         eprint!("Not a linkable file\n");
         exit(1);
     }
-    MyElf::new(f)
+    //get elh_header
+    let ehdr: Ehdr = read_struct(&f.ctx);
+    //get all sec_header
+    let mut curr_ctx = &f.ctx[ehdr.ShOff as usize..].to_vec();
+    let shdr: Shdr = read_struct(&curr_ctx);
+    //get the number of section headers
+    let mut section_num = ehdr.ShNum as i64;
+    if section_num == 0 {
+        section_num = shdr.Size as i64;
+    }
+
+    let mut sections: Vec<Shdr> = Vec::new();
+    sections.push(shdr);
+    let section_size = std::mem::size_of::<Shdr>();
+    let mut tmp = Vec::new();
+    for i in 1..section_num {
+        tmp = curr_ctx[section_size..].to_vec();
+        curr_ctx = &tmp;
+        let tmp_shdr = read_struct(&curr_ctx);
+        sections.push(tmp_shdr);
+    }
+    // create my_elf
+    MyElf::new(f, ehdr, sections)
 }
+
+

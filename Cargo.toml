@@ -9,3 +9,4 @@ path = "src/lib/mod.rs"
 
 [dependencies]
 goblin ="0.8.2"
+bytemuck = "1.13"
