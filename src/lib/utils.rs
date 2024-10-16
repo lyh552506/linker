@@ -3,10 +3,12 @@ use crate::elf_file::{Ehdr, MyElf, MyFile, Shdr};
 use bytemuck::*;
 use goblin::elf;
 use goblin::{self, elf::Elf};
-use std::env;
+use itertools::Itertools;
+use std::env::{self, Args};
 use std::fs::File;
 use std::io::{self, Read};
 use std::process::exit;
+use std::ptr::null;
 
 pub fn read_file(file_name: &str) -> MyFile {
     let mut file = File::open(file_name).unwrap_or_else(|err| {
@@ -76,4 +78,28 @@ pub fn GetElf(file_name: &str) -> MyElf {
     MyElf::new(f, ehdr, sections)
 }
 
+pub fn parse_args() -> Vec<String> {
+    let args: Vec<String> = env::args().collect();
+    let mut capture = "".to_string();
+    let useful_args: Vec<String> = vec![];
 
+    let mut get_target_arg = |name: &String| {
+        let mut flag: Vec<String> = vec![];
+        if name.len() == 1 {
+            flag = vec!["-".to_string() + name];
+        } else {
+            flag = vec!["-".to_string() + name, "--".to_string() + name];
+        }
+        for (arg_1, arg_2) in args.iter().tuple_windows() {
+            if flag.contains(&arg_1) {
+                // return Some(arg_2);
+				capture=arg_2.to_string();
+            }
+        }
+        capture="".to_string();
+    };
+
+    get_target_arg(&"o".to_string());
+
+    useful_args
+}

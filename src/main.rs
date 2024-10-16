@@ -5,9 +5,10 @@ use std::{
 
 fn main() {
     let Args: Vec<String> = env::args().collect();
-	for i in 0..Args.len(){
-		println!("{}",Args[i]);	
-	}
+	// for i in 0..Args.len(){
+	// 	println!("{}",Args[i]);	
+	// }
+	utils::parse_args();
 	return;
     // if Args.len() < 2 {
     //     eprintln!("Missing args!");

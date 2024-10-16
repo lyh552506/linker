@@ -1,5 +1,5 @@
+use bytemuck::{Pod, Zeroable};
 use goblin::{self, elf::Elf};
-use bytemuck::{Pod,Zeroable};
 pub struct MyFile {
     pub file_name: String,
     pub ctx: Vec<u8>,
@@ -8,11 +8,16 @@ pub struct MyFile {
 pub struct MyElf {
     pub file: MyFile,
     pub ElfHdr: Ehdr,
-    pub Sections:Vec<Shdr>,
+    pub Sections: Vec<Shdr>,
+}
+
+pub struct LinkInfo {
+    pub output_path: String,
+    pub library_path: String,
 }
 
 impl MyElf {
-    pub fn new(f: MyFile,e:Ehdr,Sec:Vec<Shdr>) -> MyElf {
+    pub fn new(f: MyFile, e: Ehdr, Sec: Vec<Shdr>) -> MyElf {
         MyElf {
             file: f,
             ElfHdr: e,
