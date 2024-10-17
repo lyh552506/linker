@@ -4,7 +4,7 @@ test_name=$(basename "$0" .sh)
 # echo "$test_name"
 # echo "$0"
 
-target_pos=out/
+target_pos=out
 rm -rf "$target_pos"
 mkdir -p "$target_pos"
 

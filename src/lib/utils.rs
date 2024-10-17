@@ -1,12 +1,15 @@
 #![allow(unused)]
 use crate::elf_file::{Ehdr, MyElf, MyFile, Shdr};
+use crate::link_info::LinkInfo;
 use bytemuck::*;
 use goblin::elf;
 use goblin::{self, elf::Elf};
 use itertools::Itertools;
 use std::env::{self, Args};
-use std::fs::File;
+use std::fmt::format;
+use std::fs::*;
 use std::io::{self, Read};
+use std::path::Path;
 use std::process::exit;
 use std::ptr::null;
 
@@ -28,12 +31,20 @@ pub fn read_file(file_name: &str) -> MyFile {
     }
 }
 
-fn check_magnum(content: &Vec<u8>) -> bool {
+pub fn check_magnum(content: &Vec<u8>) -> bool {
     let magic_hdr: [u8; 4] = [0x7f, 0x45, 0x4c, 0x46];
     if content[0..4] != magic_hdr {
         return false;
     }
     true
+}
+
+pub fn check_ar(content: &Vec<u8>) -> bool {
+    let file_signature: Vec<u8> = b"!<arch>".to_vec();
+    if content.starts_with(&file_signature) {
+        return true;
+    }
+    false
 }
 
 pub fn read_struct<T: Pod>(src: &Vec<u8>) -> T {
@@ -45,7 +56,7 @@ pub fn read_struct<T: Pod>(src: &Vec<u8>) -> T {
     bytemuck::from_bytes::<T>(target_struct).clone()
 }
 
-pub fn GetElf(file_name: &str) -> MyElf {
+pub fn get_elf(file_name: &str) -> MyElf {
     //read file
     let f = read_file(file_name);
     //check
@@ -78,28 +89,70 @@ pub fn GetElf(file_name: &str) -> MyElf {
     MyElf::new(f, ehdr, sections)
 }
 
-pub fn parse_args() -> Vec<String> {
-    let args: Vec<String> = env::args().collect();
-    let mut capture = "".to_string();
+pub fn parse_args() -> LinkInfo {
+    let mut linker = LinkInfo::new();
+    let mut args: Vec<String> = env::args().collect();
     let useful_args: Vec<String> = vec![];
+    let mut args_num: usize = 0;
 
-    let mut get_target_arg = |name: &String| {
-        let mut flag: Vec<String> = vec![];
-        if name.len() == 1 {
-            flag = vec!["-".to_string() + name];
+    //parse args
+    while args.len() > args_num {
+        if let Some(val) = get_target_arg(&format!("o"), &args) {
+            args.retain(|x| x != &val && x != &format!("-o"));
+            linker.output_path = val;
+        } else if let Some(val) = get_target_arg(&format!("L"), &args) {
+            args.retain(|x| x != &val);
+            let path = val[2..].to_string();
+            linker.library_path.push(path);
+        } else if let Some(val) = get_target_arg(&format!("l"), &args) {
+            if let Some(file_path) = find_ar_file(&val[2..].to_string(), &linker) {
+                args.retain(|x| x != &val);
+				linker.analysis_ar(read_file(&val));
+            }
         } else {
-            flag = vec!["-".to_string() + name, "--".to_string() + name];
+            args_num += 1;
         }
-        for (arg_1, arg_2) in args.iter().tuple_windows() {
-            if flag.contains(&arg_1) {
-                // return Some(arg_2);
-				capture=arg_2.to_string();
+    }
+    //parse obj file
+    for remain in &args {
+		// println!("Name:{}", remain);
+        if remain.ends_with(".o") {
+            linker.append_obj(read_file(remain));
+        }
+    }
+    linker
+}
+
+pub fn get_target_arg(name: &String, args: &Vec<String>) -> Option<String> {
+    let mut flag: Vec<String> = vec![];
+    if name.len() == 1 && name != &format!("*") {
+        flag = vec![format!("-{}", name)];
+    } else if name.len() == 1 {
+        flag = vec![format!("-")];
+    } else {
+        flag = vec![format!("-{}", name), format!("--{}", name)];
+    }
+    for (ind, arg_2) in args.iter().enumerate() {
+        if flag.contains(&arg_2) {
+            return Some(args[ind + 1].to_string());
+        }
+        //capture args like -L....
+        for (_, n) in flag.iter().enumerate() {
+            if arg_2.starts_with(n) {
+                return Some(arg_2.to_string());
             }
         }
-        capture="".to_string();
-    };
+    }
+    None
+}
 
-    get_target_arg(&"o".to_string());
-
-    useful_args
+pub fn find_ar_file(name: &String, linkinfo: &LinkInfo) -> Option<String> {
+    let file_name = format!("lib{}.a", name);
+    for lib_path in &linkinfo.library_path {
+        let path = Path::new(lib_path).join(&file_name);
+        if path.exists() {
+            return Some(path.to_string_lossy().to_string());
+        }
+    }
+    None
 }

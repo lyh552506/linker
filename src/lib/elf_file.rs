@@ -1,8 +1,18 @@
 use bytemuck::{Pod, Zeroable};
 use goblin::{self, elf::Elf};
+use crate::objfile::{ObjFile};
 pub struct MyFile {
     pub file_name: String,
     pub ctx: Vec<u8>,
+}
+
+impl MyFile {
+    pub fn new(name: String, content: Vec<u8>) -> MyFile {
+        MyFile {
+            file_name: name,
+            ctx: content,
+        }
+    }
 }
 
 pub struct MyElf {
@@ -11,10 +21,7 @@ pub struct MyElf {
     pub Sections: Vec<Shdr>,
 }
 
-pub struct LinkInfo {
-    pub output_path: String,
-    pub library_path: String,
-}
+
 
 impl MyElf {
     pub fn new(f: MyFile, e: Ehdr, Sec: Vec<Shdr>) -> MyElf {
