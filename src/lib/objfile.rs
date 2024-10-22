@@ -5,7 +5,8 @@ pub struct ObjFile {
 }
 
 impl ObjFile {
-    pub fn new(f: MyFile) -> ObjFile {
-        ObjFile { file: f }
+    pub fn new(name: String, content: Vec<u8>) -> ObjFile {
+        let _file = MyFile::new(name, content);
+        ObjFile { file: _file }
     }
 }

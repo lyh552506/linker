@@ -8,3 +8,4 @@ pub mod link_info;
 pub mod elf_file;
 pub mod objfile;
 pub mod utils;
+pub mod ar_file;
