@@ -1,7 +1,7 @@
-use crate::ar_file::*;
-use crate::elf_file::MyFile;
+
+use crate::{ar_file::*, utils};
+use crate::elf_file::{MyElf, MyFile};
 use crate::objfile::ObjFile;
-use crate::utils::*;
 
 pub struct LinkInfo {
     pub output_path: String,
@@ -26,14 +26,11 @@ impl LinkInfo {
         }
     }
 
-    pub fn append_obj(&mut self, f: MyFile) {
-        self.object_file.push(ObjFile { file: f });
-    }
 
-    pub fn analysis_ar(&self, f: MyFile) -> Vec<ObjFile> {
-        assert!(check_ar(&f.ctx));
+    pub fn analysis_ar(&self, f: MyFile) -> Vec<MyElf> {
+        assert!(utils::check_ar(&f.ctx));
         println!("Name:{}", f.file_name);
-        let mut objs: Vec<ObjFile> = vec![];
+        let mut objs: Vec<MyElf> = vec![];
         let mut strtab: Vec<u8> = vec![];
         let mut cur = 8; //pass magic number size
         let mut ctx = f.ctx.to_vec();
@@ -43,7 +40,7 @@ impl LinkInfo {
                 cur = cur + 1;
                 continue;
             }
-            let hdr: Arhdr = read_struct(&ctx[cur..].to_vec());
+            let hdr: Arhdr = utils::read_struct(&ctx[cur..].to_vec());
             let start = cur + std::mem::size_of::<Arhdr>();
             let end = start
                 + std::str::from_utf8(&hdr.size[..])
@@ -60,7 +57,10 @@ impl LinkInfo {
             if hdr.is_symtab() {
                 continue;
             }
-            objs.push(ObjFile::new(hdr.get_name(&strtab.to_vec()), content));
+			let file=MyFile::new(hdr.get_name(&strtab.to_vec()), content);
+			// let obj_file=ObjFile::new(file);
+			
+            objs.push(crate::utils::get_elf(file));
         }
 
         objs

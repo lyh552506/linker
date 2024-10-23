@@ -1,6 +1,6 @@
+use crate::objfile::ObjFile;
 use bytemuck::{Pod, Zeroable};
 use goblin::{self, elf::Elf};
-use crate::objfile::{ObjFile};
 pub struct MyFile {
     pub file_name: String,
     pub ctx: Vec<u8>,
@@ -20,8 +20,6 @@ pub struct MyElf {
     pub ElfHdr: Ehdr,
     pub Sections: Vec<Shdr>,
 }
-
-
 
 impl MyElf {
     pub fn new(f: MyFile, e: Ehdr, Sec: Vec<Shdr>) -> MyElf {
@@ -70,3 +68,16 @@ pub struct Shdr {
 }
 unsafe impl Zeroable for Shdr {}
 unsafe impl Pod for Shdr {}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct Sym {
+    pub name: u32,
+    pub info: u8,
+    pub other: u8,
+    pub shndx: u16,
+    pub val: u64,
+    pub size: u64,
+}
+unsafe impl Zeroable for Sym {}
+unsafe impl Pod for Sym {}
