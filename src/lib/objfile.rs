@@ -25,7 +25,7 @@ impl ObjFile {
         }
     }
 }
-pub fn parse_symtab(f: &MyElf) -> ObjFile {
+pub fn parse_symtab(f: &MyElf) -> Option<ObjFile> {
     if let Some(symtab_hdr) = utils::find_section(&f, section_header::SHT_SYMTAB) {
         //find a symtab header, now get his symbols
         let mut symbols: Vec<Sym> = vec![];
@@ -34,14 +34,13 @@ pub fn parse_symtab(f: &MyElf) -> ObjFile {
         let mut symbols_num = source.len() / sym_size;
         for i in 0..symbols_num {
             symbols.push(read_struct(&source[i * sym_size..].to_vec()));
-            symbols_num = symbols_num - 1;
         }
-        //get the symtab position
+        //get the firat global symbol's position
         let global_pos = symtab_hdr.Info;
         //get the str section
-		//TODO
-        exit(0);
+        let str_sec = f.Sections[symtab_hdr.Link as usize];
+        Some(ObjFile::new(f.clone(), symtab_hdr, global_pos, symbols))
     } else {
-        exit(0);
-    }
+		None
+	}
 }

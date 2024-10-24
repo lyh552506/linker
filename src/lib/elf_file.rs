@@ -1,6 +1,7 @@
 use crate::objfile::ObjFile;
 use bytemuck::{Pod, Zeroable};
 use goblin::{self, elf::Elf};
+#[derive(Clone)]
 pub struct MyFile {
     pub file_name: String,
     pub ctx: Vec<u8>,
@@ -14,7 +15,7 @@ impl MyFile {
         }
     }
 }
-
+#[derive(Clone)]
 pub struct MyElf {
     pub file: MyFile,
     pub ElfHdr: Ehdr,
