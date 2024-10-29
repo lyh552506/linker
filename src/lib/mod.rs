@@ -10,4 +10,5 @@ pub mod objfile;
 pub mod utils;
 pub mod ar_file;
 pub mod symbol;
+pub mod pass;
 static WorkSpaceFolderPlace:&str="/home/lyh_irie/Arch_Learning/linker/my_linker";

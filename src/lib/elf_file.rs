@@ -1,6 +1,6 @@
 use crate::objfile::ObjFile;
 use bytemuck::{Pod, Zeroable};
-use goblin::{self, elf::Elf};
+use goblin::{self, elf::Elf, strtab};
 #[derive(Clone)]
 pub struct MyFile {
     pub file_name: String,
@@ -82,3 +82,24 @@ pub struct Sym {
 }
 unsafe impl Zeroable for Sym {}
 unsafe impl Pod for Sym {}
+
+pub fn get_name(strtab: &Vec<u8>, offset: usize) -> String {
+    let res = match std::str::from_utf8(&strtab) {
+        Ok(v) => Some(v),
+        Err(_) => None,
+    };
+    let s = res.unwrap();
+    // println!("strtab is: {}",s);
+    // 尝试将 u8 切片转换为 &str
+    for i in 0..s.len(){
+		println!("{}:{}",i,s.chars().nth(i).unwrap());
+	}
+    let res = s[offset..].find("0").map(|pos| offset + pos);
+    if let Some(a)=res{
+
+	}else{
+		println!("MAtch");
+	}
+	let end = res.unwrap();
+    s[offset..end].to_string()
+}
