@@ -1,6 +1,11 @@
-use crate::objfile::ObjFile;
+use crate::{objfile::ObjFile, symbol::Symbol};
 use bytemuck::{Pod, Zeroable};
-use goblin::{self, elf::Elf, strtab};
+use goblin::{
+    self,
+    elf::{self, section_header::SHN_UNDEF, Elf},
+    strtab,
+};
+use std::{collections::HashMap, rc::Rc};
 #[derive(Clone)]
 pub struct MyFile {
     pub file_name: String,
@@ -20,15 +25,27 @@ pub struct MyElf {
     pub file: MyFile,
     pub ElfHdr: Ehdr,
     pub Sections: Vec<Shdr>,
+    pub symbol_map: HashMap<String, Rc<Symbol>>,
 }
 
 impl MyElf {
     pub fn new(f: MyFile, e: Ehdr, Sec: Vec<Shdr>) -> MyElf {
+        let map = HashMap::new();
         MyElf {
             file: f,
             ElfHdr: e,
             Sections: Sec,
+            symbol_map: map,
         }
+    }
+
+    pub fn GetCorrespondSym(&mut self, name: &String) -> Rc<Symbol> {
+        if let Some(name) = self.symbol_map.get(name) {
+            return Rc::clone(name);
+        }
+        let sym = Rc::new(Symbol::new_null(name.to_string()));
+        self.symbol_map.insert(name.to_string(), Rc::clone(&sym));
+        sym
     }
 }
 
@@ -83,23 +100,23 @@ pub struct Sym {
 unsafe impl Zeroable for Sym {}
 unsafe impl Pod for Sym {}
 
+impl Sym {
+    pub fn is_undef(&self) -> bool {
+        self.shndx == elf::section_header::SHN_UNDEF as u16
+    }
+
+    pub fn is_abs(&self) -> bool {
+        self.shndx == elf::section_header::SHN_ABS as u16
+    }
+}
+
 pub fn get_name(strtab: &Vec<u8>, offset: usize) -> String {
     let res = match std::str::from_utf8(&strtab) {
         Ok(v) => Some(v),
         Err(_) => None,
     };
     let s = res.unwrap();
-    // println!("strtab is: {}",s);
-    // 尝试将 u8 切片转换为 &str
-    for i in 0..s.len(){
-		println!("{}:{}",i,s.chars().nth(i).unwrap());
-	}
-    let res = s[offset..].find("0").map(|pos| offset + pos);
-    if let Some(a)=res{
-
-	}else{
-		println!("MAtch");
-	}
-	let end = res.unwrap();
+    let res = s[offset..].find("\0").map(|pos| offset + pos);
+    let end = res.unwrap();
     s[offset..end].to_string()
 }

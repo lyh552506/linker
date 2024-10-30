@@ -165,10 +165,10 @@ pub fn parse_args() -> LinkInfo {
             }
         }
     }
-    for (index, obj) in object_file.iter().enumerate() {
+    for (index, obj) in object_file.iter_mut().enumerate() {
         linker
             .object_file
-            .push(objfile::parse_symtab(&obj, alive <= index));
+            .push(objfile::parse_symtab(obj, alive <= index));
     }
     linker
 }

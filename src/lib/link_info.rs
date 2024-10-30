@@ -29,7 +29,7 @@ impl LinkInfo {
 
     pub fn analysis_ar(&self, f: MyFile) -> Vec<MyElf> {
         assert!(utils::check_ar(&f.ctx));
-        println!("Name:{}", f.file_name);
+        // println!("Name:{}", f.file_name);
         let mut objs: Vec<MyElf> = vec![];
         let mut strtab: Vec<u8> = vec![];
         let mut cur = 8; //pass magic number size
@@ -58,8 +58,8 @@ impl LinkInfo {
                 continue;
             }
 			let file=MyFile::new(hdr.get_name(&strtab.to_vec()), content);
-			// let obj_file=ObjFile::new(file);
 			
+			// println!("Name:{}", file.file_name);
             objs.push(crate::utils::get_elf(file));
         }
 
