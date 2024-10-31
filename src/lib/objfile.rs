@@ -1,7 +1,11 @@
 use bytemuck::NoUninit;
-use goblin::{archive::Index, elf::section_header};
+use core::num;
+use goblin::{
+    archive::Index,
+    elf::{self, section_header},
+};
 use itertools::Itertools;
-use std::{mem::*, rc::Rc,cell::RefCell};
+use std::{cell::RefCell, mem::*, process::id, rc::Rc};
 
 use crate::{
     elf_file::{self, MyElf, MyFile, Shdr, Sym},
@@ -19,6 +23,7 @@ pub struct ObjFile {
     pub is_alive: bool,
     pub local_symbols: Vec<Rc<RefCell<Symbol>>>,
     pub global_symbols: Vec<Rc<RefCell<Symbol>>>,
+    pub symtab_shndx_section: Vec<u32>,
     pub ind: usize,
 }
 
@@ -46,6 +51,7 @@ impl ObjFile {
             local_symbols: vec![],
             global_symbols: vec![],
             ind: tmp,
+            symtab_shndx_section: vec![],
         }
     }
 
@@ -65,16 +71,28 @@ impl ObjFile {
             local_symbols: vec![],
             global_symbols: vec![],
             ind: tmp,
+            symtab_shndx_section: vec![],
         }
     }
 
-    // pub fn update_local_symbols(&mut self, local_sym: Vec<Rc<Symbol>>) {
-    //     self.local_symbols = local_sym;
-    // }
+    pub fn fill_symtab_shndx_section(&mut self) {
+        let section = utils::find_section(&self.objfile, section_header::SHT_SYMTAB_SHNDX);
+        if let Some(shdr) = section {
+            let source = utils::get_target_section_content(&self.objfile.file, &shdr);
+            let nums = source.len() / 4;
+            for i in 0..nums {
+                let tmp = read_struct(&source[i * 4..].to_vec());
+                self.symtab_shndx_section.push(tmp);
+            }
+        }
+    }
 
-    // pub fn update_global_symbols(&mut self, global_sym: Vec<Rc<Symbol>>) {
-    //     self.global_symbols = global_sym;
-    // }
+    pub fn get_section_index(&self, sym: &Sym, ind: usize) -> u64 {
+        if sym.shndx == goblin::elf::section_header::SHN_XINDEX as u16 {
+            return self.symtab_shndx_section[ind] as u64;
+        }
+        return sym.shndx as u64;
+    }
 
     pub fn initialize_symbols(&mut self, elf: &mut MyElf) {
         if let Some(symtab) = self.sym_str_tab {
@@ -104,18 +122,13 @@ pub fn parse_symtab(f: &mut MyElf, alive: bool) -> ObjFile {
     if let Some(symtab_hdr) = utils::find_section(&f, section_header::SHT_SYMTAB) {
         //find a symtab header, now get his symbols
         let mut symbols: Vec<elf_file::Sym> = vec![];
-        // let mut source = utils::get_target_section_content(&f.file, symtab_hdr);
-        // let sym_size = size_of::<elf_file::Sym>();
-        // let symbols_num = source.len() / sym_size;
-        // for i in 0..symbols_num {
-        //     symbols.push(read_struct(&source[i * sym_size..].to_vec()));
-        // }
         fill_syms(f, &symtab_hdr, &mut symbols);
         //get the firat global symbol's position
         let global_pos = symtab_hdr.Info as i32;
         //get the str section
         let symtab: Vec<u8> = utils::get_target_section_from_index(&f, symtab_hdr.Link);
         let mut objfile = ObjFile::new(f.clone(), symtab, symtab_hdr, global_pos, symbols, alive);
+        objfile.fill_symtab_shndx_section();
         objfile.initialize_symbols(f);
         objfile
     } else {
