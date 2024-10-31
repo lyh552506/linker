@@ -5,7 +5,7 @@ use goblin::{
     elf::{self, section_header::SHN_UNDEF, Elf},
     strtab,
 };
-use std::{collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 #[derive(Clone)]
 pub struct MyFile {
     pub file_name: String,
@@ -25,7 +25,7 @@ pub struct MyElf {
     pub file: MyFile,
     pub ElfHdr: Ehdr,
     pub Sections: Vec<Shdr>,
-    pub symbol_map: HashMap<String, Rc<Symbol>>,
+    pub symbol_map: HashMap<String, Rc<RefCell<Symbol>>>,
 }
 
 impl MyElf {
@@ -39,11 +39,11 @@ impl MyElf {
         }
     }
 
-    pub fn GetCorrespondSym(&mut self, name: &String) -> Rc<Symbol> {
+    pub fn GetCorrespondSym(&mut self, name: &String) -> Rc<RefCell<Symbol>> {
         if let Some(name) = self.symbol_map.get(name) {
             return Rc::clone(name);
         }
-        let sym = Rc::new(Symbol::new_null(name.to_string()));
+        let sym = Rc::new(RefCell::new(Symbol::new_null(name.to_string())));
         self.symbol_map.insert(name.to_string(), Rc::clone(&sym));
         sym
     }

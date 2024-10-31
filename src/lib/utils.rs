@@ -223,7 +223,7 @@ pub fn find_section(elf: &MyElf, section_flag: u32) -> Option<Shdr> {
     None
 }
 
-pub fn get_target_section_content(file: &MyFile, section: Shdr) -> Vec<u8> {
+pub fn get_target_section_content(file: &MyFile, section: &Shdr) -> Vec<u8> {
     let start = section.Offset as usize;
     let end = (section.Offset + section.Size) as usize;
     assert!(end <= file.ctx.len());
@@ -231,5 +231,5 @@ pub fn get_target_section_content(file: &MyFile, section: Shdr) -> Vec<u8> {
 }
 
 pub fn get_target_section_from_index(elf: &MyElf, section_index: u32) -> Vec<u8> {
-    return get_target_section_content(&elf.file, elf.Sections[section_index as usize]);
+    return get_target_section_content(&elf.file, &elf.Sections[section_index as usize]);
 }

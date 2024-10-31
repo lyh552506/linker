@@ -1,4 +1,4 @@
-use my_project_lib::utils;
+use my_project_lib::{pass, utils};
 use std::{
     env::{self},
 };
@@ -11,6 +11,7 @@ fn main() {
     let linkinfo = utils::parse_args();
 	linkinfo.print();
     
+	pass::mark_live(&linkinfo);
 
     return;
     // if Args.len() < 2 {
