@@ -1,11 +1,14 @@
 #![allow(unused)]
 use crate::elf_file::{Ehdr, MyElf, MyFile, Shdr};
 use crate::link_info::LinkInfo;
+use crate::objfile::{ObjFile, ObjFileMapping};
 use crate::{objfile, WorkSpaceFolderPlace};
 use bytemuck::*;
 use goblin::elf::{self, section_header};
+use goblin::pe::symbol::Symbol;
 use goblin::{self, elf::Elf};
 use itertools::Itertools;
+use std::cell::RefCell;
 use std::env::{self, Args};
 use std::fmt::format;
 use std::fs::*;
@@ -13,6 +16,7 @@ use std::io::{self, Read};
 use std::path::Path;
 use std::process::exit;
 use std::ptr::null;
+use std::rc::Rc;
 
 pub fn read_file(file_name: &str) -> Option<MyFile> {
     let mut file = match File::open(file_name) {
@@ -89,8 +93,9 @@ pub fn get_elf(f: MyFile) -> MyElf {
     MyElf::new(f, ehdr, sections)
 }
 
-pub fn parse_args() -> LinkInfo {
+pub fn parse_args() -> (LinkInfo, objfile::ObjFileMapping) {
     let mut linker = LinkInfo::new();
+    let mut objmapping = ObjFileMapping::new();
     // let mut args: Vec<String> = env::args().collect();
     let mut args: Vec<String> = vec![
         "./ld".to_string(),
@@ -166,11 +171,12 @@ pub fn parse_args() -> LinkInfo {
         }
     }
     for (index, obj) in object_file.iter_mut().enumerate() {
-        linker
-            .object_file
-            .push(objfile::parse_symtab(obj, alive <= index));
+        let o = objfile::parse_symtab(obj, alive <= index, &objmapping);
+        let o_rc = Rc::new(RefCell::new(o));
+        objmapping.add_obj(&o_rc);
+        linker.object_file.push(o_rc);
     }
-    linker
+    (linker, objmapping)
 }
 
 pub fn get_target_arg(name: &String, args: &Vec<String>) -> Option<String> {
@@ -232,4 +238,13 @@ pub fn get_target_section_content(file: &MyFile, section: &Shdr) -> Vec<u8> {
 
 pub fn get_target_section_from_index(elf: &MyElf, section_index: u32) -> Vec<u8> {
     return get_target_section_content(&elf.file, &elf.Sections[section_index as usize]);
+}
+
+pub fn get_correspond_sym(name: &String) -> Rc<RefCell<crate::symbol::Symbol>> {
+    if let Some(n) = crate::symbol::Symbol::get_symbol(name) {
+        return Rc::clone(&n);
+    }
+    let sym = Rc::new(RefCell::new(crate::symbol::Symbol::new_null(name.to_string())));
+    crate::symbol::Symbol::add_symbol(name.to_string(), Rc::clone(&sym));
+    sym
 }

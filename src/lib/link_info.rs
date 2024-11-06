@@ -1,12 +1,12 @@
-
-use crate::{ar_file::*, utils};
 use crate::elf_file::{MyElf, MyFile};
 use crate::objfile::ObjFile;
+use crate::{ar_file::*, utils};
+use std::{cell::RefCell, rc::Rc};
 
 pub struct LinkInfo {
     pub output_path: String,
     pub library_path: Vec<String>,
-    pub object_file: Vec<ObjFile>,
+    pub object_file: Vec<Rc<RefCell<ObjFile>>>,
 }
 
 impl LinkInfo {
@@ -25,7 +25,6 @@ impl LinkInfo {
             println!("{}", path);
         }
     }
-
 
     pub fn analysis_ar(&self, f: MyFile) -> Vec<MyElf> {
         assert!(utils::check_ar(&f.ctx));
@@ -57,9 +56,9 @@ impl LinkInfo {
             if hdr.is_symtab() {
                 continue;
             }
-			let file=MyFile::new(hdr.get_name(&strtab.to_vec()), content);
-			
-			// println!("Name:{}", file.file_name);
+            let file = MyFile::new(hdr.get_name(&strtab.to_vec()), content);
+
+            // println!("Name:{}", file.file_name);
             objs.push(crate::utils::get_elf(file));
         }
 

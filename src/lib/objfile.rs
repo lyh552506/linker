@@ -5,7 +5,7 @@ use goblin::{
     elf::{self, section_header},
 };
 use itertools::Itertools;
-use std::{cell::RefCell, mem::*, process::id, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, mem::*, process::id, rc::Rc};
 
 use crate::{
     elf_file::{self, MyElf, MyFile, Shdr, Sym},
@@ -25,6 +25,26 @@ pub struct ObjFile {
     pub global_symbols: Vec<Rc<RefCell<Symbol>>>,
     pub symtab_shndx_section: Vec<u32>,
     pub ind: usize,
+}
+
+pub struct ObjFileMapping {
+    ind2obj: HashMap<usize, Rc<RefCell<ObjFile>>>,
+}
+
+impl ObjFileMapping {
+    pub fn new() -> Self {
+        ObjFileMapping {
+            ind2obj: HashMap::new(),
+        }
+    }
+    pub fn add_obj(&mut self, objfile: &Rc<RefCell<ObjFile>>) {
+        self.ind2obj
+            .insert(objfile.borrow().ind, Rc::clone(objfile));
+    }
+
+    pub fn get_obj_by_ind(&self, ind: usize) -> Option<Rc<RefCell<ObjFile>>> {
+        self.ind2obj.get(&ind).cloned()
+    }
 }
 
 impl ObjFile {
@@ -95,6 +115,10 @@ impl ObjFile {
     }
 
     pub fn initialize_symbols(&mut self, elf: &mut MyElf) {
+        let mut name="".to_string();
+		if elf.file.file_name == "ioputs.o"||elf.file.file_name == "out/hello.o" {
+			name=elf.file.file_name.to_string();
+		}
         if let Some(symtab) = self.sym_str_tab {
             assert!(self.global_pos != -1);
             println!("{}", self.objfile.file.file_name);
@@ -110,7 +134,7 @@ impl ObjFile {
             for i in self.global_pos..self.symbols.len() as i32 {
                 let name_index = self.symbols[i as usize].name;
                 let name = elf_file::get_name(&self.sym_tab, name_index as usize);
-                let sym = elf.GetCorrespondSym(&name); //make sure only has one symbol
+                let sym = utils::get_correspond_sym(&name); //make sure only has one symbol
                 self.global_symbols.push(sym);
             }
         } else {
@@ -118,7 +142,7 @@ impl ObjFile {
         }
     }
 }
-pub fn parse_symtab(f: &mut MyElf, alive: bool) -> ObjFile {
+pub fn parse_symtab(f: &mut MyElf, alive: bool, objmaping: &ObjFileMapping) -> ObjFile {
     if let Some(symtab_hdr) = utils::find_section(&f, section_header::SHT_SYMTAB) {
         //find a symtab header, now get his symbols
         let mut symbols: Vec<elf_file::Sym> = vec![];

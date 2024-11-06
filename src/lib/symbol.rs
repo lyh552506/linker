@@ -1,4 +1,10 @@
 use crate::{elf_file::Shdr, objfile::ObjFile};
+use std::{rc::Rc,cell::RefCell,collections::HashMap};
+
+
+thread_local! {
+    pub static SYMBOL_MAP: RefCell<HashMap<String, Rc<RefCell<Symbol>>>> = RefCell::new(HashMap::new());
+}
 #[derive(Clone)]
 pub struct Symbol {
     pub objfile: Option<usize>,
@@ -45,5 +51,17 @@ impl Symbol {
     }
     pub fn set_ind(&mut self, ind: i32) {
         self.sym_idx = ind;
+    }
+
+	pub fn add_symbol(name: String, symbol: Rc<RefCell<Symbol>>) {
+        SYMBOL_MAP.with(|map| {
+            map.borrow_mut().insert(name, symbol);
+        })
+    }
+
+    pub fn get_symbol(name: &str) -> Option<Rc<RefCell<Symbol>>> {
+        SYMBOL_MAP.with(|map| {
+            map.borrow().get(name).cloned()
+        })
     }
 }

@@ -39,14 +39,6 @@ impl MyElf {
         }
     }
 
-    pub fn GetCorrespondSym(&mut self, name: &String) -> Rc<RefCell<Symbol>> {
-        if let Some(name) = self.symbol_map.get(name) {
-            return Rc::clone(name);
-        }
-        let sym = Rc::new(RefCell::new(Symbol::new_null(name.to_string())));
-        self.symbol_map.insert(name.to_string(), Rc::clone(&sym));
-        sym
-    }
 }
 
 #[repr(C)]

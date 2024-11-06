@@ -1,18 +1,22 @@
 use my_project_lib::{pass, utils};
-use std::{
-    env::{self},
-};
+use std::env::{self};
 
 fn main() {
     let Args: Vec<String> = env::args().collect();
-    for i in 0..Args.len(){
-    	println!("{}",Args[i]);
+    for i in 0..Args.len() {
+        println!("{}", Args[i]);
     }
-    let linkinfo = utils::parse_args();
-	linkinfo.print();
-    
-	pass::mark_live(&linkinfo);
+    let (mut linkinfo, mapping) = utils::parse_args();
+    linkinfo.print();
 
+    pass::mark_live(&mut linkinfo, &mapping);
+    // for obj in linkinfo.object_file {
+    //     if obj.borrow().objfile.file.file_name == "out/hello.o" {
+    //         for sym in &obj.borrow().local_symbols {
+    //             println!("sym name:{}",sym.borrow().name);
+    //         }
+    //     }
+    // }
     return;
     // if Args.len() < 2 {
     //     eprintln!("Missing args!");

@@ -1,58 +1,72 @@
 use goblin::elf;
+use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     elf_file, link_info,
     objfile::{self, ObjFile},
 };
-pub fn mark_live(linker: &mut link_info::LinkInfo) {
+pub fn mark_live(linker: &mut link_info::LinkInfo, mapping: &objfile::ObjFileMapping) {
     let mut live_objs = vec![];
-    for obj in &mut linker.object_file {
+    for obj in &linker.object_file {
         collect_global_syms(obj);
-        if obj.is_alive {
-            live_objs.push(obj);
+        if obj.borrow().is_alive {
+            live_objs.push(Rc::clone(obj));
         }
     }
-    RecursiveMarking(&mut live_objs);
+    recursive_marking(&mut live_objs, mapping);
+    println!("Before prunning {}", linker.object_file.len());
+
+    //get rid of all unlive objfiles
+    linker.object_file.retain(|obj| obj.borrow().is_alive);
+
+    println!("After prunning {}", linker.object_file.len());
 }
 
-pub fn RecursiveMarking(objs: &mut Vec<&mut ObjFile>) {
+pub fn recursive_marking(objs: &mut Vec<Rc<RefCell<ObjFile>>>, mapping: &objfile::ObjFileMapping) {
     while !objs.is_empty() {
         let obj_file = objs.remove(0);
-        for i in obj_file.global_pos as usize..obj_file.symbols.len() {
-            let sym = &obj_file.symbols[i];
-            let symbol = &obj_file.global_symbols[i - obj_file.global_pos as usize];
+        println!("target file:{}", obj_file.borrow().objfile.file.file_name);
+        for i in obj_file.borrow().global_pos as usize..obj_file.borrow().symbols.len() {
+            let sym = &obj_file.borrow().symbols[i];
+            let symbol =
+                &obj_file.borrow().global_symbols[i - obj_file.borrow().global_pos as usize];
+			println!("symbols:{}",symbol.borrow().name);
             if symbol.borrow().objfile.is_none() {
                 continue;
             }
-            if is_alive(obj_file, sym) {
-				//TODO
-			}
-            // if sym.is_undef() && !obj_file.is_alive {
-            // 	obj_file.is_alive=true;
-            // 	objs.push(obj_file);
-            // }
+
+            let obj_ind = symbol.borrow().objfile.unwrap();
+            let o = mapping.get_obj_by_ind(obj_ind);
+            if o.is_none() {
+                assert!(false, "what");
+            }
+            let obj = o.unwrap();
+			println!("belongs to file:{}",obj.borrow().objfile.file.file_name);
+            if sym.is_undef() && !obj.borrow().is_alive {
+                obj.borrow_mut().is_alive = true;
+                objs.push(Rc::clone(&obj));
+            }
         }
     }
 }
 
-pub fn is_alive(obj: &ObjFile, sym: &elf_file::Sym) -> bool {
-    if sym.is_undef() && !obj.is_alive {
-        // obj.is_alive = true;
-        return true;
-    }
-    return false;
-}
-
-pub fn collect_global_syms(obj: &objfile::ObjFile) {
-    for i in obj.global_pos as usize..obj.symbols.len() {
-        let symbol = &obj.global_symbols[i - obj.global_pos as usize];
-        let sym = &obj.symbols[i];
+pub fn collect_global_syms(obj: &Rc<RefCell<objfile::ObjFile>>) {
+    for i in obj.borrow().global_pos as usize..obj.borrow().symbols.len() {
+        let symbol = &obj.borrow().global_symbols[i - obj.borrow().global_pos as usize];
+        let sym = &obj.borrow().symbols[i];
+		if symbol.borrow().name=="puts"{
+			let f=&obj.borrow().objfile.file.file_name;
+			let tmp=symbol.borrow().name.to_string();
+			if tmp.is_empty(){
+				continue;
+			}
+		}
         if sym.is_undef() {
             continue;
         }
         let mut shdr = None;
         if !sym.is_abs() {
-            let sh = obj.objfile.Sections[obj.get_section_index(sym, i) as usize];
+            let sh = obj.borrow().objfile.Sections[obj.borrow().get_section_index(sym, i) as usize];
             if sh.Type == elf::section_header::SHT_GROUP
                 || sh.Type == elf::section_header::SHT_SYMTAB
                 || sh.Type == elf::section_header::SHT_STRTAB
@@ -63,13 +77,12 @@ pub fn collect_global_syms(obj: &objfile::ObjFile) {
                 continue;
             }
             shdr = Some((
-                obj.objfile.Sections[obj.get_section_index(sym, i) as usize],
+                obj.borrow().objfile.Sections[obj.borrow().get_section_index(sym, i) as usize],
                 i,
             ));
         }
-
         if symbol.borrow().objfile.is_none() {
-            symbol.borrow_mut().set_file(obj.ind);
+            symbol.borrow_mut().set_file(obj.borrow().ind);
             if let Some(s) = shdr {
                 symbol.borrow_mut().set_section(s);
             }
