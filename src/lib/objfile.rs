@@ -11,6 +11,7 @@ use crate::{
     elf_file::{self, MyElf, MyFile, Shdr, Sym},
     symbol::Symbol,
     utils::{self, read_struct},
+	mergeable_section,
 };
 static mut INDEX: usize = 0;
 #[derive(Clone)]
@@ -25,6 +26,7 @@ pub struct ObjFile {
     pub global_symbols: Vec<Rc<RefCell<Symbol>>>,
     pub symtab_shndx_section: Vec<u32>,
     pub ind: usize,
+	pub mergeable_sections:Vec<Option<mergeable_section::MergeableSec>>,
 }
 
 pub struct ObjFileMapping {
@@ -72,6 +74,7 @@ impl ObjFile {
             global_symbols: vec![],
             ind: tmp,
             symtab_shndx_section: vec![],
+			mergeable_sections:vec![],
         }
     }
 
@@ -92,6 +95,7 @@ impl ObjFile {
             global_symbols: vec![],
             ind: tmp,
             symtab_shndx_section: vec![],
+			mergeable_sections:vec![],
         }
     }
 
@@ -114,14 +118,14 @@ impl ObjFile {
         return sym.shndx as u64;
     }
 
-    pub fn initialize_symbols(&mut self, elf: &mut MyElf) {
-        let mut name="".to_string();
-		if elf.file.file_name == "ioputs.o"||elf.file.file_name == "out/hello.o" {
-			name=elf.file.file_name.to_string();
-		}
+    fn initialize_symbols(&mut self, elf: &mut MyElf) {
+        // let mut name="".to_string();
+		// if elf.file.file_name == "ioputs.o"||elf.file.file_name == "out/hello.o" {
+		// 	name=elf.file.file_name.to_string();
+		// }
         if let Some(symtab) = self.sym_str_tab {
             assert!(self.global_pos != -1);
-            println!("{}", self.objfile.file.file_name);
+            // println!("{}", self.objfile.file.file_name);
             for i in 0..self.global_pos {
                 let name_index = self.symbols[i as usize].name;
                 let val = self.symbols[i as usize].val;
@@ -141,6 +145,13 @@ impl ObjFile {
             return;
         }
     }
+
+	fn initialize_mergeable_sections(&mut self, elf: &MyElf){
+		self.mergeable_sections.resize(elf.Sections.len(), None);
+		for i in 0..elf.Sections.len(){
+			let sec=elf.Sections[i];
+		}
+	}
 }
 pub fn parse_symtab(f: &mut MyElf, alive: bool, objmaping: &ObjFileMapping) -> ObjFile {
     if let Some(symtab_hdr) = utils::find_section(&f, section_header::SHT_SYMTAB) {
@@ -154,6 +165,7 @@ pub fn parse_symtab(f: &mut MyElf, alive: bool, objmaping: &ObjFileMapping) -> O
         let mut objfile = ObjFile::new(f.clone(), symtab, symtab_hdr, global_pos, symbols, alive);
         objfile.fill_symtab_shndx_section();
         objfile.initialize_symbols(f);
+		objfile.initialize_mergeable_sections(f);
         objfile
     } else {
         ObjFile::new_null(f.clone(), alive)

@@ -10,13 +10,7 @@ fn main() {
     linkinfo.print();
 
     pass::mark_live(&mut linkinfo, &mapping);
-    // for obj in linkinfo.object_file {
-    //     if obj.borrow().objfile.file.file_name == "out/hello.o" {
-    //         for sym in &obj.borrow().local_symbols {
-    //             println!("sym name:{}",sym.borrow().name);
-    //         }
-    //     }
-    // }
+    
     return;
     // if Args.len() < 2 {
     //     eprintln!("Missing args!");

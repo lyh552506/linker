@@ -13,7 +13,7 @@ use std::env::{self, Args};
 use std::fmt::format;
 use std::fs::*;
 use std::io::{self, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::ptr::null;
 use std::rc::Rc;
@@ -97,8 +97,8 @@ pub fn parse_args() -> (LinkInfo, objfile::ObjFileMapping) {
     let mut linker = LinkInfo::new();
     let mut objmapping = ObjFileMapping::new();
     // let mut args: Vec<String> = env::args().collect();
-    let mut args: Vec<String> = vec![
-        "./ld".to_string(),
+    let mut args = vec![
+        String::from("./ld"),
         "-plugin".to_string(),
         "/usr/lib/gcc-cross/riscv64-linux-gnu/11/liblto_plugin.so".to_string(),
         "-plugin-opt=/usr/lib/gcc-cross/riscv64-linux-gnu/11/lto-wrapper".to_string(),
@@ -161,6 +161,11 @@ pub fn parse_args() -> (LinkInfo, objfile::ObjFileMapping) {
             args_num += 1;
         }
     }
+    //formalize lib path
+	for libpath in linker.library_path.iter_mut() {
+        canonicalize_path(libpath);
+    }
+
     alive = object_file.len();
     //parse obj file (Alive)
     for remain in &args {
@@ -244,7 +249,20 @@ pub fn get_correspond_sym(name: &String) -> Rc<RefCell<crate::symbol::Symbol>> {
     if let Some(n) = crate::symbol::Symbol::get_symbol(name) {
         return Rc::clone(&n);
     }
-    let sym = Rc::new(RefCell::new(crate::symbol::Symbol::new_null(name.to_string())));
+    let sym = Rc::new(RefCell::new(crate::symbol::Symbol::new_null(
+        name.to_string(),
+    )));
     crate::symbol::Symbol::add_symbol(name.to_string(), Rc::clone(&sym));
     sym
+}
+
+pub fn canonicalize_path(path: &mut String) {
+    match std::fs::canonicalize(Path::new(path)) {
+        Ok(p) => {
+            *path = p.to_string_lossy().into_owned();
+        }
+        Err(err) => {
+            assert!(false, "No way");
+        }
+    }
 }

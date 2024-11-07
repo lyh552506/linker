@@ -91,3 +91,7 @@ pub fn collect_global_syms(obj: &Rc<RefCell<objfile::ObjFile>>) {
         }
     }
 }
+
+pub fn make_section_piece(linker: &mut link_info::LinkInfo){
+	
+}
