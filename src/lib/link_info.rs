@@ -56,10 +56,10 @@ impl LinkInfo {
             if hdr.is_symtab() {
                 continue;
             }
-            let file = MyFile::new(hdr.get_name(&strtab.to_vec()), content);
+            let mut file = MyFile::new(hdr.get_name(&strtab.to_vec()), content);
 
             // println!("Name:{}", file.file_name);
-            objs.push(crate::utils::get_elf(file));
+            objs.push(crate::utils::get_elf(file, Some(&f)));
         }
 
         objs

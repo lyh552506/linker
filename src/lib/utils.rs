@@ -1,15 +1,18 @@
 #![allow(unused)]
 use crate::elf_file::{Ehdr, MyElf, MyFile, Shdr};
-use crate::link_info::LinkInfo;
 use crate::objfile::{ObjFile, ObjFileMapping};
+use crate::section;
+use crate::{ar_file::Arhdr, link_info::LinkInfo};
 use crate::{objfile, WorkSpaceFolderPlace};
 use bytemuck::*;
 use goblin::elf::{self, section_header};
+use goblin::mach::segment::Section;
 use goblin::pe::symbol::Symbol;
 use goblin::{self, elf::Elf};
 use itertools::Itertools;
 use std::cell::RefCell;
-use std::env::{self, Args};
+use std::collections::btree_map::Range;
+use std::env::{self, consts, Args};
 use std::fmt::format;
 use std::fs::*;
 use std::io::{self, Read};
@@ -62,8 +65,11 @@ pub fn read_struct<T: Pod>(src: &Vec<u8>) -> T {
     bytemuck::from_bytes::<T>(target_struct).clone()
 }
 
-pub fn get_elf(f: MyFile) -> MyElf {
+pub fn get_elf(f: MyFile, ar_file: Option<&MyFile>) -> MyElf {
     //check
+    if f.file_name == "pthread_keys.o" {
+        let x = &f.ctx;
+    }
     if !check_magnum(&f.ctx) {
         eprint!("Not a linkable file\n");
         exit(1);
@@ -90,7 +96,11 @@ pub fn get_elf(f: MyFile) -> MyElf {
         sections.push(tmp_shdr);
     }
     // create my_elf
-    MyElf::new(f, ehdr, sections)
+    if ar_file.is_none() {
+        return MyElf::new(f, ehdr, sections);
+    } else {
+        return MyElf::new_with_arfile(f, ehdr, sections, ar_file.unwrap().file_name.to_string());
+    }
 }
 
 pub fn parse_args() -> (LinkInfo, objfile::ObjFileMapping) {
@@ -162,7 +172,7 @@ pub fn parse_args() -> (LinkInfo, objfile::ObjFileMapping) {
         }
     }
     //formalize lib path
-	for libpath in linker.library_path.iter_mut() {
+    for libpath in linker.library_path.iter_mut() {
         canonicalize_path(libpath);
     }
 
@@ -171,13 +181,26 @@ pub fn parse_args() -> (LinkInfo, objfile::ObjFileMapping) {
     for remain in &args {
         if remain.ends_with(".o") {
             if let Some(f) = read_file(&remain) {
-                object_file.push(get_elf(f));
+                object_file.push(get_elf(f, None));
             }
         }
     }
     for (index, obj) in object_file.iter_mut().enumerate() {
         let o = objfile::parse_symtab(obj, alive <= index, &objmapping);
         let o_rc = Rc::new(RefCell::new(o));
+        if o_rc.borrow().objfile.file.file_name == "pthread_keys.o" {
+            let x = o_rc.as_ptr();
+        }
+        let res = o_rc.borrow_mut().initialize_sections(&o_rc);
+        //create sections
+        for i in 0..res.len() {
+            let inx = res[i];
+            o_rc.borrow_mut().sections[inx as usize] = &section::Section::new(&o_rc, inx)
+                as *const section::Section
+                as *mut section::Section;
+        }
+        o_rc.borrow_mut().initialize_symbols();
+        o_rc.borrow_mut().initialize_mergeable_sections();
         objmapping.add_obj(&o_rc);
         linker.object_file.push(o_rc);
     }

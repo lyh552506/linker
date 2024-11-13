@@ -1,11 +1,20 @@
-use crate::{objfile::ObjFile, symbol::Symbol};
+use crate::{
+    ar_file::{self, Arhdr},
+    objfile::ObjFile,
+    symbol::Symbol,
+};
 use bytemuck::{Pod, Zeroable};
 use goblin::{
     self,
     elf::{self, section_header::SHN_UNDEF, Elf},
     strtab,
 };
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{
+    cell::{Ref, RefCell},
+    collections::HashMap,
+    fs::File,
+    rc::Rc,
+};
 #[derive(Clone)]
 pub struct MyFile {
     pub file_name: String,
@@ -23,6 +32,7 @@ impl MyFile {
 #[derive(Clone)]
 pub struct MyElf {
     pub file: MyFile,
+    pub ar_content: Option<String>,
     pub ElfHdr: Ehdr,
     pub Sections: Vec<Shdr>,
     pub symbol_map: HashMap<String, Rc<RefCell<Symbol>>>,
@@ -36,9 +46,20 @@ impl MyElf {
             ElfHdr: e,
             Sections: Sec,
             symbol_map: map,
+            ar_content: None,
         }
     }
 
+    pub fn new_with_arfile(f: MyFile, e: Ehdr, Sec: Vec<Shdr>, ar_file:String) -> MyElf {
+        let map = HashMap::new();
+        MyElf {
+            file: f,
+            ElfHdr: e,
+            Sections: Sec,
+            symbol_map: map,
+            ar_content: Some(ar_file),
+        }
+    }
 }
 
 #[repr(C)]

@@ -30,7 +30,7 @@ pub fn recursive_marking(objs: &mut Vec<Rc<RefCell<ObjFile>>>, mapping: &objfile
             let sym = &obj_file.borrow().symbols[i];
             let symbol =
                 &obj_file.borrow().global_symbols[i - obj_file.borrow().global_pos as usize];
-			println!("symbols:{}",symbol.borrow().name);
+            println!("symbols:{}", symbol.borrow().name);
             if symbol.borrow().objfile.is_none() {
                 continue;
             }
@@ -41,7 +41,7 @@ pub fn recursive_marking(objs: &mut Vec<Rc<RefCell<ObjFile>>>, mapping: &objfile
                 assert!(false, "what");
             }
             let obj = o.unwrap();
-			println!("belongs to file:{}",obj.borrow().objfile.file.file_name);
+            println!("belongs to file:{}", obj.borrow().objfile.file.file_name);
             if sym.is_undef() && !obj.borrow().is_alive {
                 obj.borrow_mut().is_alive = true;
                 objs.push(Rc::clone(&obj));
@@ -53,45 +53,36 @@ pub fn recursive_marking(objs: &mut Vec<Rc<RefCell<ObjFile>>>, mapping: &objfile
 pub fn collect_global_syms(obj: &Rc<RefCell<objfile::ObjFile>>) {
     for i in obj.borrow().global_pos as usize..obj.borrow().symbols.len() {
         let symbol = &obj.borrow().global_symbols[i - obj.borrow().global_pos as usize];
-        let sym = &obj.borrow().symbols[i];
-		if symbol.borrow().name=="puts"{
-			let f=&obj.borrow().objfile.file.file_name;
-			let tmp=symbol.borrow().name.to_string();
-			if tmp.is_empty(){
-				continue;
-			}
-		}
+        let sym: &elf_file::Sym = &obj.borrow().symbols[i];
         if sym.is_undef() {
             continue;
         }
-        let mut shdr = None;
+        // let mut shdr = None;
         if !sym.is_abs() {
             let sh = obj.borrow().objfile.Sections[obj.borrow().get_section_index(sym, i) as usize];
-            if sh.Type == elf::section_header::SHT_GROUP
-                || sh.Type == elf::section_header::SHT_SYMTAB
-                || sh.Type == elf::section_header::SHT_STRTAB
-                || sh.Type == elf::section_header::SHT_REL
-                || sh.Type == elf::section_header::SHT_RELA
-                || sh.Type == elf::section_header::SHT_NULL
-            {
-                continue;
-            }
-            shdr = Some((
-                obj.borrow().objfile.Sections[obj.borrow().get_section_index(sym, i) as usize],
-                i,
-            ));
+            // if sh.Type == elf::section_header::SHT_GROUP
+            //     || sh.Type == elf::section_header::SHT_SYMTAB
+            //     || sh.Type == elf::section_header::SHT_STRTAB
+            //     || sh.Type == elf::section_header::SHT_REL
+            //     || sh.Type == elf::section_header::SHT_RELA
+            //     || sh.Type == elf::section_header::SHT_NULL
+            // {
+            //     continue;
+            // }
+            // shdr = Some((
+            //     obj.borrow().objfile.Sections[obj.borrow().get_section_index(sym, i) as usize],
+            //     i,
+            // ));
         }
         if symbol.borrow().objfile.is_none() {
             symbol.borrow_mut().set_file(obj.borrow().ind);
-            if let Some(s) = shdr {
-                symbol.borrow_mut().set_section(s);
-            }
+            // if let Some(s) = shdr {
+            //     symbol.borrow_mut().set_section(s);
+            // }
             symbol.borrow_mut().set_value(sym.val);
             symbol.borrow_mut().set_ind(i as i32);
         }
     }
 }
 
-pub fn make_section_piece(linker: &mut link_info::LinkInfo){
-	
-}
+pub fn make_section_piece(linker: &mut link_info::LinkInfo) {}

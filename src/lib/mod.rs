@@ -13,4 +13,5 @@ pub mod symbol;
 pub mod pass;
 pub mod mergeable_section;
 pub mod section_fragment;
+pub mod section;
 static WorkSpaceFolderPlace:&str="/home/lyh_irie/Arch_Learning/linker/my_linker";
